@@ -69,7 +69,15 @@ class SubscriptionStoreTest {
 
         // Saving upgrades the file to the new format, which then loads the same way.
         store.save(loaded);
-        assertTrue(Files.readString(file).startsWith("id,name,price,cycle,category\n"));
+        assertEquals("id,name,price,cycle,category", Files.readAllLines(file).get(0));
         assertEquals(loaded, store.load());
+    }
+
+    @Test
+    void loadsFilesWithWindowsLineEndings() throws IOException {
+        Path file = dir.resolve("windows.csv");
+        Files.writeString(file, "id,name,price,cycle,category\r\nabc,Netflix,15.49,MONTHLY,Streaming\r\n");
+        assertEquals(List.of(new Subscription("abc", "Netflix", new BigDecimal("15.49"), BillingCycle.MONTHLY, "Streaming")),
+                new SubscriptionStore(file).load());
     }
 }

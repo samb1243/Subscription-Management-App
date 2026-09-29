@@ -1,0 +1,61 @@
+# Builds the Windows app on GitHub's Windows machines, since jpackage can only
+# package for the OS it runs on. Download the results from the run's "Artifacts".
+name: Build Windows app
+
+on:
+  push:
+  workflow_dispatch:
+
+jobs:
+  windows:
+    # windows-2022 comes with the WiX Toolset v3 that jpackage needs to build a .msi.
+    runs-on: windows-2022
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+
+      - name: Build portable app (runs the tests)
+        run: ./package-app.sh
+
+      - name: Check the app starts
+        shell: pwsh
+        run: |
+          $app = Start-Process -FilePath "dist\SubscriptionManager\SubscriptionManager.exe" -PassThru
+          Start-Sleep -Seconds 15
+          if ($app.HasExited) {
+            Write-Error "The app exited during startup with code $($app.ExitCode)"
+            exit 1
+          }
+          Write-Host "The app is still running after 15 seconds"
+          Stop-Process -Id $app.Id -Force
+
+      - name: Zip portable app
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force out | Out-Null
+          Compress-Archive -Path dist\SubscriptionManager -DestinationPath out\SubscriptionManager-windows-portable.zip
+
+      - name: Build installer
+        run: |
+          ./package-app.sh installer
+          mv dist/*.msi out/SubscriptionManager-windows-installer.msi
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: SubscriptionManager-windows-installer
+          path: out/SubscriptionManager-windows-installer.msi
+          if-no-files-found: error
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: SubscriptionManager-windows-portable
+          path: out/SubscriptionManager-windows-portable.zip
+          if-no-files-found: error

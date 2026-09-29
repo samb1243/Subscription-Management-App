@@ -24,6 +24,19 @@ java -jar target/subscription-manager.jar
 
 Or run straight from source with `mvn compile exec:java`.
 
+## Download for Windows
+
+Every push is built for Windows by GitHub Actions (`.github/workflows/build-windows.yml`). To get the app, open the
+repository's **Actions** tab, click the latest successful **Build Windows app** run, and download from **Artifacts**
+at the bottom of the page:
+
+- **SubscriptionManager-windows-installer**: an `.msi` installer that adds the app to your Start Menu and desktop
+- **SubscriptionManager-windows-portable**: a folder you unzip anywhere and run `SubscriptionManager.exe` from,
+  with nothing to install
+
+Both come wrapped in a `.zip` by GitHub, so unzip the download first. The app isn't code-signed, so Windows
+SmartScreen may warn you the first time: click **More info**, then **Run anyway**.
+
 ## Build a standalone app
 
 `package-app.sh` uses `jpackage` (included with the JDK) to build a real desktop app with its own Java runtime
