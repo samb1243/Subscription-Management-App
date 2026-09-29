@@ -9,6 +9,7 @@ import javax.swing.AbstractAction;
 import javax.swing.BorderFactory;
 import javax.swing.Box;
 import javax.swing.BoxLayout;
+import javax.swing.DefaultComboBoxModel;
 import javax.swing.JButton;
 import javax.swing.JComboBox;
 import javax.swing.JComponent;
@@ -37,9 +38,14 @@ import java.awt.event.KeyEvent;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.TreeSet;
 
 /** The main application window: an entry form, the subscription list and running totals. */
 public class MainWindow extends JFrame {
+
+    /** Suggested in the category dropdown alongside any categories already in use. */
+    private static final List<String> SUGGESTED_CATEGORIES = List.of(
+            "Streaming", "Music", "Gaming", "Software", "Cloud storage", "News", "Fitness", "Utilities", "Other");
 
     private final SubscriptionManager manager;
     private final SubscriptionStore store;
@@ -50,6 +56,7 @@ public class MainWindow extends JFrame {
     private final JTextField nameField = new JTextField(18);
     private final JTextField priceField = new JTextField(8);
     private final JComboBox<BillingCycle> cycleBox = new JComboBox<>(BillingCycle.values());
+    private final JComboBox<String> categoryBox = new JComboBox<>();
     private final JButton addButton = new JButton("Add");
     private final JButton updateButton = new JButton("Save changes");
     private final JButton deleteButton = new JButton("Delete");
@@ -82,7 +89,7 @@ public class MainWindow extends JFrame {
         clearForm();
 
         setMinimumSize(new Dimension(640, 420));
-        setSize(760, 520);
+        setSize(820, 560);
         setLocationRelativeTo(null);
     }
 
@@ -97,8 +104,10 @@ public class MainWindow extends JFrame {
         c.gridx = 0;
         form.add(new JLabel("Name"), c);
         c.gridx = 1;
-        form.add(new JLabel("Price"), c);
+        form.add(new JLabel("Category"), c);
         c.gridx = 2;
+        form.add(new JLabel("Price"), c);
+        c.gridx = 3;
         form.add(new JLabel("Billed"), c);
 
         c.gridy = 1;
@@ -108,19 +117,31 @@ public class MainWindow extends JFrame {
         form.add(nameField, c);
         c.gridx = 1;
         c.weightx = 0;
-        form.add(priceField, c);
+        form.add(categoryBox, c);
         c.gridx = 2;
+        form.add(priceField, c);
+        c.gridx = 3;
         form.add(cycleBox, c);
 
-        JPanel buttons = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 0));
-        buttons.add(addButton);
-        buttons.add(updateButton);
+        JPanel buttons = new JPanel(new FlowLayout(FlowLayout.RIGHT, 6, 0));
         buttons.add(clearButton);
-        c.gridx = 3;
+        buttons.add(updateButton);
+        buttons.add(addButton);
+        c.gridy = 2;
+        c.gridx = 0;
+        c.gridwidth = GridBagConstraints.REMAINDER;
+        c.anchor = GridBagConstraints.EAST;
         c.fill = GridBagConstraints.NONE;
         form.add(buttons, c);
 
         nameField.setToolTipText("e.g. Netflix");
+        categoryBox.setEditable(true);
+        categoryBox.setPrototypeDisplayValue("Cloud storage  ");
+        // GridBagLayout drops to minimum sizes when space is short; keep the small fields usable.
+        priceField.setMinimumSize(priceField.getPreferredSize());
+        categoryBox.setMinimumSize(categoryBox.getPreferredSize());
+        nameField.setMinimumSize(new Dimension(120, nameField.getPreferredSize().height));
+        categoryBox.setToolTipText("Optional. Pick one or type your own, e.g. Streaming");
         priceField.setToolTipText("The amount charged each billing period, e.g. 9.99");
         return form;
     }
@@ -139,9 +160,10 @@ public class MainWindow extends JFrame {
             }
         };
         moneyRenderer.setHorizontalAlignment(SwingConstants.RIGHT);
-        table.getColumnModel().getColumn(1).setCellRenderer(moneyRenderer);
-        table.getColumnModel().getColumn(3).setCellRenderer(moneyRenderer);
-        table.getColumnModel().getColumn(0).setPreferredWidth(260);
+        table.getColumnModel().getColumn(2).setCellRenderer(moneyRenderer);
+        table.getColumnModel().getColumn(4).setCellRenderer(moneyRenderer);
+        table.getColumnModel().getColumn(0).setPreferredWidth(220);
+        table.getColumnModel().getColumn(1).setPreferredWidth(130);
 
         JScrollPane scroll = new JScrollPane(table);
 
@@ -216,7 +238,7 @@ public class MainWindow extends JFrame {
         if (values == null) {
             return;
         }
-        if (applyAndSave(() -> manager.add(Subscription.create(values.name, values.price, values.cycle)))) {
+        if (applyAndSave(() -> manager.add(Subscription.create(values.name, values.price, values.cycle, values.category)))) {
             table.clearSelection();
             clearForm();
         }
@@ -232,7 +254,7 @@ public class MainWindow extends JFrame {
         }
         String id = editingId;
         Subscription original = findById(id);
-        if (applyAndSave(() -> manager.update(original.withDetails(values.name, values.price, values.cycle)))) {
+        if (applyAndSave(() -> manager.update(original.withDetails(values.name, values.price, values.cycle, values.category)))) {
             selectById(id);
         }
     }
@@ -282,6 +304,7 @@ public class MainWindow extends JFrame {
         nameField.setText(selected.name());
         priceField.setText(selected.price().toPlainString());
         cycleBox.setSelectedItem(selected.cycle());
+        categoryBox.setSelectedItem(selected.category());
         updateFormState();
     }
 
@@ -308,7 +331,7 @@ public class MainWindow extends JFrame {
         }
     }
 
-    private record FormValues(String name, BigDecimal price, BillingCycle cycle) {
+    private record FormValues(String name, BigDecimal price, BillingCycle cycle, String category) {
     }
 
     /** Validates the form, showing an error and returning null if anything is wrong. */
@@ -328,7 +351,9 @@ public class MainWindow extends JFrame {
             priceField.selectAll();
             return null;
         }
-        return new FormValues(name, price, (BillingCycle) cycleBox.getSelectedItem());
+        // Read the editor rather than the selection so text typed but not yet committed is used.
+        String category = String.valueOf(categoryBox.getEditor().getItem()).strip();
+        return new FormValues(name, price, (BillingCycle) cycleBox.getSelectedItem(), category);
     }
 
     private void clearForm() {
@@ -336,6 +361,7 @@ public class MainWindow extends JFrame {
         nameField.setText("");
         priceField.setText("");
         cycleBox.setSelectedItem(BillingCycle.MONTHLY);
+        categoryBox.setSelectedItem("");
         updateFormState();
         nameField.requestFocusInWindow();
     }
@@ -352,10 +378,23 @@ public class MainWindow extends JFrame {
 
     private void refresh() {
         tableModel.setRows(manager.getAll());
+        refreshCategorySuggestions();
         monthlyTotalLabel.setText(MoneyFormat.format(manager.totalMonthly()));
         yearlyTotalLabel.setText("(" + MoneyFormat.format(manager.totalYearly()) + " per year)");
         int count = manager.getAll().size();
         countLabel.setText(count + (count == 1 ? " subscription" : " subscriptions"));
+    }
+
+    private void refreshCategorySuggestions() {
+        Object typed = categoryBox.getEditor().getItem();
+        TreeSet<String> categories = new TreeSet<>(String.CASE_INSENSITIVE_ORDER);
+        categories.addAll(SUGGESTED_CATEGORIES);
+        manager.getAll().stream()
+                .map(Subscription::category)
+                .filter(category -> !category.isEmpty())
+                .forEach(categories::add);
+        categoryBox.setModel(new DefaultComboBoxModel<>(categories.toArray(String[]::new)));
+        categoryBox.setSelectedItem(typed);
     }
 
     private void showError(String message) {

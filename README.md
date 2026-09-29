@@ -3,6 +3,8 @@
 A desktop app, written in Java, for keeping track of your subscriptions and what they cost you each month.
 
 - Add each subscription with its name, price, and how often it's billed (weekly, monthly, quarterly, or yearly)
+- Optionally give each one a category (Streaming, Music, Gaming, …, or type your own). Categories you've used before are
+  suggested next time, and clicking a column header sorts by it
 - See the **total cost per month** (and per year) update as you go
 - Non-monthly subscriptions are converted to a monthly equivalent (e.g. a £95/year plan counts as £7.92/month)
 - Click a subscription to edit it; select it and press **Delete** to remove it
