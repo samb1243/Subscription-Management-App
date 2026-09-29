@@ -23,8 +23,8 @@ class SubscriptionManagerTest {
     @Test
     void totalsMonthlySubscriptions() {
         SubscriptionManager manager = new SubscriptionManager();
-        manager.add(Subscription.create("Netflix", money("15.49"), BillingCycle.MONTHLY));
-        manager.add(Subscription.create("Spotify", money("11.99"), BillingCycle.MONTHLY));
+        manager.add(Subscription.create("Netflix", money("15.49"), BillingCycle.MONTHLY, ""));
+        manager.add(Subscription.create("Spotify", money("11.99"), BillingCycle.MONTHLY, ""));
         assertEquals(money("27.48"), manager.totalMonthly());
         assertEquals(money("329.76"), manager.totalYearly());
     }
@@ -41,9 +41,9 @@ class SubscriptionManagerTest {
     @Test
     void mixedCyclesRoundOnlyTheTotal() {
         SubscriptionManager manager = new SubscriptionManager();
-        manager.add(Subscription.create("A", money("100"), BillingCycle.YEARLY));   // 8.3333...
-        manager.add(Subscription.create("B", money("100"), BillingCycle.YEARLY));   // 8.3333...
-        manager.add(Subscription.create("C", money("100"), BillingCycle.YEARLY));   // 8.3333...
+        manager.add(Subscription.create("A", money("100"), BillingCycle.YEARLY, ""));   // 8.3333...
+        manager.add(Subscription.create("B", money("100"), BillingCycle.YEARLY, ""));   // 8.3333...
+        manager.add(Subscription.create("C", money("100"), BillingCycle.YEARLY, ""));   // 8.3333...
         assertEquals(money("25.00"), manager.totalMonthly());
         assertEquals(money("300.00"), manager.totalYearly());
     }
@@ -51,9 +51,9 @@ class SubscriptionManagerTest {
     @Test
     void updateAndRemove() {
         SubscriptionManager manager = new SubscriptionManager();
-        Subscription s = Subscription.create("Gym", money("40"), BillingCycle.MONTHLY);
+        Subscription s = Subscription.create("Gym", money("40"), BillingCycle.MONTHLY, "");
         manager.add(s);
-        manager.update(s.withDetails("Gym", money("45"), BillingCycle.MONTHLY));
+        manager.update(s.withDetails("Gym", money("45"), BillingCycle.MONTHLY, ""));
         assertEquals(money("45.00"), manager.totalMonthly());
         manager.remove(s.id());
         assertEquals(0, manager.getAll().size());
@@ -62,14 +62,29 @@ class SubscriptionManagerTest {
     @Test
     void rejectsInvalidSubscriptions() {
         assertThrows(IllegalArgumentException.class,
-                () -> Subscription.create("  ", money("1"), BillingCycle.MONTHLY));
+                () -> Subscription.create("  ", money("1"), BillingCycle.MONTHLY, ""));
         assertThrows(IllegalArgumentException.class,
-                () -> Subscription.create("X", money("-1"), BillingCycle.MONTHLY));
+                () -> Subscription.create("X", money("-1"), BillingCycle.MONTHLY, ""));
     }
 
     @Test
     void normalisesWhitespaceInNames() {
         assertEquals("Disney Plus",
-                Subscription.create("  Disney \n Plus ", money("1"), BillingCycle.MONTHLY).name());
+                Subscription.create("  Disney \n Plus ", money("1"), BillingCycle.MONTHLY, "").name());
+    }
+
+    @Test
+    void categoryIsOptionalAndNormalised() {
+        assertEquals("", new Subscription("id", "X", money("1"), BillingCycle.MONTHLY, null).category());
+        assertEquals("Cloud storage",
+                Subscription.create("X", money("1"), BillingCycle.MONTHLY, "  Cloud \n storage ").category());
+    }
+
+    @Test
+    void withDetailsUpdatesCategoryAndKeepsId() {
+        Subscription s = Subscription.create("Netflix", money("15.49"), BillingCycle.MONTHLY, "");
+        Subscription updated = s.withDetails("Netflix", money("15.49"), BillingCycle.MONTHLY, "Streaming");
+        assertEquals(s.id(), updated.id());
+        assertEquals("Streaming", updated.category());
     }
 }

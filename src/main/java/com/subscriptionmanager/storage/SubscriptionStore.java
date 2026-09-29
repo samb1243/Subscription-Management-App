@@ -14,11 +14,13 @@ import java.util.List;
 
 /**
  * Saves and loads subscriptions as a CSV file so they persist between runs.
- * Format: {@code id,name,price,cycle} with a header row.
+ * Format: {@code id,name,price,cycle,category} with a header row. Files saved by
+ * earlier versions, which have no category column, still load (with no category).
  */
 public class SubscriptionStore {
 
-    private static final String HEADER = "id,name,price,cycle";
+    private static final String HEADER = "id,name,price,cycle,category";
+    private static final String LEGACY_HEADER = "id,name,price,cycle";
 
     private final Path file;
 
@@ -44,11 +46,11 @@ public class SubscriptionStore {
         List<String> lines = Files.readAllLines(file, StandardCharsets.UTF_8);
         for (int i = 0; i < lines.size(); i++) {
             String line = lines.get(i);
-            if (line.isBlank() || (i == 0 && line.equals(HEADER))) {
+            if (line.isBlank() || (i == 0 && (line.equals(HEADER) || line.equals(LEGACY_HEADER)))) {
                 continue;
             }
             List<String> fields = parseLine(line);
-            if (fields.size() != 4) {
+            if (fields.size() != 4 && fields.size() != 5) {
                 throw new IOException("Malformed line " + (i + 1) + " in " + file + ": " + line);
             }
             try {
@@ -56,7 +58,8 @@ public class SubscriptionStore {
                         fields.get(0),
                         fields.get(1),
                         new BigDecimal(fields.get(2)),
-                        BillingCycle.valueOf(fields.get(3))));
+                        BillingCycle.valueOf(fields.get(3)),
+                        fields.size() == 5 ? fields.get(4) : ""));
             } catch (IllegalArgumentException e) {
                 throw new IOException("Invalid data on line " + (i + 1) + " in " + file + ": " + e.getMessage(), e);
             }
@@ -74,7 +77,8 @@ public class SubscriptionStore {
                     escape(s.id()),
                     escape(s.name()),
                     s.price().toPlainString(),
-                    s.cycle().name()));
+                    s.cycle().name(),
+                    escape(s.category())));
         }
         // Write to a temp file then move, so a crash mid-write can't corrupt existing data.
         Path temp = Files.createTempFile(parent, "subscriptions", ".tmp");

@@ -11,7 +11,7 @@ import java.util.List;
 /** Table model showing each subscription and its monthly equivalent cost. */
 class SubscriptionTableModel extends AbstractTableModel {
 
-    private static final String[] COLUMNS = {"Subscription", "Price", "Billed", "Per month"};
+    private static final String[] COLUMNS = {"Subscription", "Category", "Price", "Billed", "Per month"};
 
     private List<Subscription> rows = new ArrayList<>();
 
@@ -51,8 +51,8 @@ class SubscriptionTableModel extends AbstractTableModel {
     @Override
     public Class<?> getColumnClass(int column) {
         return switch (column) {
-            case 1, 3 -> BigDecimal.class;
-            case 2 -> BillingCycle.class;
+            case 2, 4 -> BigDecimal.class;
+            case 3 -> BillingCycle.class;
             default -> String.class;
         };
     }
@@ -62,9 +62,10 @@ class SubscriptionTableModel extends AbstractTableModel {
         Subscription s = rows.get(row);
         return switch (column) {
             case 0 -> s.name();
-            case 1 -> s.price();
-            case 2 -> s.cycle();
-            case 3 -> s.monthlyCost();
+            case 1 -> s.category();
+            case 2 -> s.price();
+            case 3 -> s.cycle();
+            case 4 -> s.monthlyCost();
             default -> throw new IllegalArgumentException("Unknown column " + column);
         };
     }

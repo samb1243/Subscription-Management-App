@@ -29,9 +29,10 @@ class SubscriptionStoreTest {
     void roundTripsSubscriptions() throws IOException {
         SubscriptionStore store = new SubscriptionStore(dir.resolve("nested/subs.csv"));
         List<Subscription> original = List.of(
-                Subscription.create("Netflix", new BigDecimal("15.49"), BillingCycle.MONTHLY),
-                Subscription.create("Tricky, \"quoted\" name", new BigDecimal("99.00"), BillingCycle.YEARLY),
-                Subscription.create("Café ☕", new BigDecimal("3.50"), BillingCycle.WEEKLY));
+                Subscription.create("Netflix", new BigDecimal("15.49"), BillingCycle.MONTHLY, "Streaming"),
+                Subscription.create("Tricky, \"quoted\" name", new BigDecimal("99.00"), BillingCycle.YEARLY,
+                        "Work, \"misc\""),
+                Subscription.create("Café ☕", new BigDecimal("3.50"), BillingCycle.WEEKLY, ""));
         store.save(original);
         assertEquals(original, store.load());
     }
@@ -39,7 +40,7 @@ class SubscriptionStoreTest {
     @Test
     void saveOverwritesPreviousContents() throws IOException {
         SubscriptionStore store = new SubscriptionStore(dir.resolve("subs.csv"));
-        store.save(List.of(Subscription.create("Old", BigDecimal.ONE, BillingCycle.MONTHLY)));
+        store.save(List.of(Subscription.create("Old", BigDecimal.ONE, BillingCycle.MONTHLY, "")));
         store.save(List.of());
         assertTrue(store.load().isEmpty());
     }
@@ -54,5 +55,21 @@ class SubscriptionStoreTest {
     @Test
     void parsesQuotedFields() {
         assertEquals(List.of("a", "b,c", "d\"e", ""), SubscriptionStore.parseLine("a,\"b,c\",\"d\"\"e\","));
+    }
+
+    @Test
+    void loadsFilesSavedBeforeCategoriesExisted() throws IOException {
+        Path file = dir.resolve("old.csv");
+        Files.writeString(file, "id,name,price,cycle\nabc,Netflix,15.49,MONTHLY\n");
+        SubscriptionStore store = new SubscriptionStore(file);
+
+        List<Subscription> loaded = store.load();
+        assertEquals(List.of(new Subscription("abc", "Netflix", new BigDecimal("15.49"), BillingCycle.MONTHLY, "")),
+                loaded);
+
+        // Saving upgrades the file to the new format, which then loads the same way.
+        store.save(loaded);
+        assertTrue(Files.readString(file).startsWith("id,name,price,cycle,category\n"));
+        assertEquals(loaded, store.load());
     }
 }
