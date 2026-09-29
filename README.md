@@ -10,17 +10,32 @@ A desktop app, written in Java, for keeping track of your subscriptions and what
 
 ## Requirements
 
-- JDK 17 or newer
-- Maven 3.6+
+- JDK 25 or newer
+- Maven 3.9+
 
 ## Run it
+
+Build and start the packaged application:
 
 ```bash
 mvn package
 java -jar target/subscription-manager.jar
 ```
 
-Or run straight from source with `mvn compile exec:java`.
+To compile and start straight from source:
+
+```bash
+mvn compile
+java -cp target/classes com.subscriptionmanager.App
+```
+
+On Windows PowerShell, set `JAVA_HOME` to your JDK installation before running Maven and Java if it is not already configured:
+
+```powershell
+$env:JAVA_HOME = "C:\Program Files\Eclipse Adoptium\jdk-25.0.3.9-hotspot"
+mvn compile
+java -cp target\classes com.subscriptionmanager.App
+```
 
 ## Build a standalone app
 
