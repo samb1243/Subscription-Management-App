@@ -1,0 +1,58 @@
+package com.subscriptionmanager.storage;
+
+import com.subscriptionmanager.model.BillingCycle;
+import com.subscriptionmanager.model.Subscription;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
+
+import java.io.IOException;
+import java.math.BigDecimal;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.List;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+class SubscriptionStoreTest {
+
+    @TempDir
+    Path dir;
+
+    @Test
+    void missingFileLoadsEmpty() throws IOException {
+        assertTrue(new SubscriptionStore(dir.resolve("none.csv")).load().isEmpty());
+    }
+
+    @Test
+    void roundTripsSubscriptions() throws IOException {
+        SubscriptionStore store = new SubscriptionStore(dir.resolve("nested/subs.csv"));
+        List<Subscription> original = List.of(
+                Subscription.create("Netflix", new BigDecimal("15.49"), BillingCycle.MONTHLY),
+                Subscription.create("Tricky, \"quoted\" name", new BigDecimal("99.00"), BillingCycle.YEARLY),
+                Subscription.create("Café ☕", new BigDecimal("3.50"), BillingCycle.WEEKLY));
+        store.save(original);
+        assertEquals(original, store.load());
+    }
+
+    @Test
+    void saveOverwritesPreviousContents() throws IOException {
+        SubscriptionStore store = new SubscriptionStore(dir.resolve("subs.csv"));
+        store.save(List.of(Subscription.create("Old", BigDecimal.ONE, BillingCycle.MONTHLY)));
+        store.save(List.of());
+        assertTrue(store.load().isEmpty());
+    }
+
+    @Test
+    void malformedFileThrows() throws IOException {
+        Path file = dir.resolve("bad.csv");
+        Files.writeString(file, "id,name,price,cycle\nabc,Netflix,not-a-number,MONTHLY\n");
+        assertThrows(IOException.class, () -> new SubscriptionStore(file).load());
+    }
+
+    @Test
+    void parsesQuotedFields() {
+        assertEquals(List.of("a", "b,c", "d\"e", ""), SubscriptionStore.parseLine("a,\"b,c\",\"d\"\"e\","));
+    }
+}
