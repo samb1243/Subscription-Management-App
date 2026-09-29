@@ -24,7 +24,11 @@ fi
 EXTRA=()
 case "$(uname -s)" in
   Darwin) EXTRA+=(--mac-package-name "Subscription Manager") ;;
-  MINGW*|MSYS*|CYGWIN*) EXTRA+=(--win-menu --win-shortcut --win-dir-chooser) ;;
+  MINGW*|MSYS*|CYGWIN*)
+    # Installer-only options: jpackage rejects them when building a plain app folder.
+    # The fixed upgrade UUID lets a newer installer replace an older install instead of adding a second copy.
+    [[ "$TYPE" != "app-image" ]] && EXTRA+=(--win-menu --win-menu-group "Subscription Manager" --win-shortcut
+      --win-dir-chooser --win-upgrade-uuid "6f1d9d3e-3c1a-4d8e-9b8e-5a0c2f7b41d2") ;;
   Linux) [[ "$TYPE" != "app-image" ]] && EXTRA+=(--linux-shortcut) ;;
 esac
 
